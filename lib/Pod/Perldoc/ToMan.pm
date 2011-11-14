@@ -1,8 +1,10 @@
-
 require 5;
 package Pod::Perldoc::ToMan;
 use strict;
 use warnings;
+
+use vars qw($VERSION);
+$VERSION = '3.15_09';
 
 # This class is unlike ToText.pm et al, because we're NOT paging thru
 # the output in our particular format -- we make the output and
@@ -35,12 +37,51 @@ sub new { return bless {}, ref($_[0]) || $_[0] }
 
 use File::Spec::Functions qw(catfile);
 
+sub _get_stty { `stty -a` }
+sub _get_columns_from_stty {
+  my $output = $_[0]->_get_stty;
+
+  if(    $output =~ /\bcolumns\s+(\d+)/ )    { return $1 }
+  elsif( $output =~ /;\s*(\d+)\s+columns;/ ) { return $1 }
+  else                                       { return  0 }
+  }
+
+sub _get_columns_from_manwidth {
+  my( $self ) = @_;
+
+  return 0 unless defined $ENV{MANWIDTH};
+
+  unless( $ENV{MANWIDTH} =~ m/\A\d+\z/ ) {
+    $self->warn( "Ignoring non-numeric MANWIDTH ($ENV{MANWIDTH})\n" );
+    return 0;
+    }
+
+  if( $ENV{MANWIDTH} == 0 ) {
+    $self->warn( "Ignoring MANWIDTH of 0. Really? Why even run the program? :)\n" );
+    return 0;
+    }
+
+  if( $ENV{MANWIDTH} =~ m/\A(\d+)\z/ ) { return $1 }
+
+  return 0;
+  }
+
+sub _get_default_width {
+  73
+  }
+
+sub _get_columns {
+  $_[0]->_get_columns_from_manwidth ||
+  $_[0]->_get_columns_from_stty     ||
+  $_[0]->_get_default_width;
+  }
+
 sub parse_from_file {
   my $self = shift;
   my($file, $outfh) = @_;
 
-  my $render = $self->{'__nroffer'} || die "no nroffer set!?";
-  
+  my $render = $self->{'__nroffer'} || $self->die( "no nroffer set!?" );
+
   # turn the switches into CLIs
   my $switches = join ' ',
     map qq{"--$_=$self->{$_}"},
@@ -50,14 +91,14 @@ sub parse_from_file {
 
   my $pod2man =
     catfile(
-      ($self->{'__bindir'}  || die "no bindir set?!"  ),
-      ($self->{'__pod2man'} || die "no pod2man set?!" ),
+      ($self->{'__bindir'}  || $self->die( "no bindir set?!" )  ),
+      ($self->{'__pod2man'} || $self->die( "no pod2man set?!" ) ),
     )
   ;
   unless(-e $pod2man) {
     # This is rarely needed, I think.
-    $pod2man = $self->{'__pod2man'} || die "no pod2man set?!";
-    die "Can't find a pod2man?! (". $self->{'__pod2man'} .")\nAborting"
+    $pod2man = $self->{'__pod2man'} || $self->die( "no pod2man set?!" );
+    $self->die( "Can't find a pod2man?! (". $self->{'__pod2man'} .")\nAborting" )
       unless -e $pod2man;
   }
 
@@ -65,15 +106,15 @@ sub parse_from_file {
          # no temp file, just a pipe!
 
   # Thanks to Brendan O'Dea for contributing the following block
-  if(Pod::Perldoc::IS_Linux and -t STDOUT
-    and my ($cols) = `stty -a` =~ m/\bcolumns\s+(\d+)/
+  if( $self->is_linux and -t STDOUT
+    and my ($cols) = $self->_get_columns
   ) {
     my $c = $cols * 39 / 40;
     $cols = $c > $cols - 2 ? $c : $cols -2;
     $command .= ' -rLL=' . (int $c) . 'n' if $cols > 80;
   }
 
-  if(Pod::Perldoc::IS_Cygwin) {
+  if( $self->is_cygwin) {
     $command .= ' -c';
   }
 
@@ -82,13 +123,13 @@ sub parse_from_file {
   # don't have a -c switch, so that unconditionally adding it here
   # would presumably be a Bad Thing   -- sburke@cpan.org
 
-  $command .= " | col -x" if Pod::Perldoc::IS_HPUX;
-  
+  $command .= " | col -x" if $self->is_hpux;
+
   defined(&Pod::Perldoc::DEBUG)
    and Pod::Perldoc::DEBUG()
    and print "About to run $command\n";
   ;
-  
+
   my $rslt = `$command`;
 
   my $err;
@@ -113,12 +154,12 @@ sub parse_from_file {
     # A desperate fallthru:
     require Pod::Perldoc::ToPod;
     return  Pod::Perldoc::ToPod->new->parse_from_file(@_);
-    
+
   } else {
     print $outfh $rslt
-     or die "Can't print to $$self{__output_file}: $!";
+     or $self->die( "Can't print to $$self{__output_file}: $!" );
   }
-  
+
   return;
 }
 
@@ -126,11 +167,11 @@ sub parse_from_file {
 sub ___Do_filter_nroff {
   my $self = shift;
   my @data = split /\n{2,}/, shift;
-  
+
   shift @data while @data and $data[0] !~ /\S/; # Go to header
   shift @data if @data and $data[0] =~ /Contributed\s+Perl/; # Skip header
   pop @data if @data and $data[-1] =~ /^\w/; # Skip footer, like
-				# 28/Jan/99 perl 5.005, patch 53 1
+        # 28/Jan/99 perl 5.005, patch 53 1
   join "\n\n", @data;
 }
 
@@ -182,10 +223,11 @@ merchantability or fitness for a particular purpose.
 
 =head1 AUTHOR
 
-Current maintainer: Adriano R. Ferreira <ferreira@cpan.org>
+Current maintainer: brian d foy C<< <bdfoy@cpan.org> >>
 
 Past contributions from:
-Sean M. Burke <sburke@cpan.org>
+Adriano R. Ferreira C<< <ferreira@cpan.org> >>,
+Sean M. Burke C<< <sburke@cpan.org> >>
 
 =cut
 

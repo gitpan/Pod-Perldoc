@@ -1,4 +1,3 @@
-
 require 5;
 package Pod::Perldoc::ToRtf;
 use strict;
@@ -20,11 +19,11 @@ sub output_extension   { 'rtf' }
 sub page_for_perldoc {
   my($self, $tempfile, $perldoc) = @_;
   return unless $perldoc->IS_MSWin32;
-  
+
   my $rtf_pager = $ENV{'RTFREADER'} || 'write.exe';
-  
+
   $perldoc->aside( "About to launch <\"$rtf_pager\" \"$tempfile\">\n" );
-  
+
   return 1 if system( qq{"$rtf_pager"}, qq{"$tempfile"} ) == 0;
   return 0;
 }
@@ -79,10 +78,11 @@ merchantability or fitness for a particular purpose.
 
 =head1 AUTHOR
 
-Current maintainer: Adriano R. Ferreira <ferreira@cpan.org>
+Current maintainer: brian d foy C<< <bdfoy@cpan.org> >>
 
 Past contributions from:
-Sean M. Burke <sburke@cpan.org>
+Adriano R. Ferreira C<< <ferreira@cpan.org> >>,
+Sean M. Burke C<< <sburke@cpan.org> >>
 
 =cut
 
