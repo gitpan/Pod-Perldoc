@@ -5,7 +5,7 @@ use strict;
 use warnings;
 
 use vars qw($VERSION);
-$VERSION = '3.15_09';
+$VERSION = '3.15_10';
 
 use Carp qw(croak carp);
 
@@ -43,15 +43,23 @@ sub _perldoc_elem {
   }
 }
 
+sub debugging {
+    defined(&Pod::Perldoc::DEBUG) and &Pod::Perldoc::DEBUG()
+	}
+
+sub debug {
+	my( $self, @messages ) = @_;
+	return unless $self->debugging;
+	print STDERR map { "DEBUG $_" } @messages;
+	}
+
 sub warn {
 	my( $self, @messages ) = @_;
-
 	carp join "\n", @messages;
 	}
 
 sub die {
 	my( $self, @messages ) = @_;
-
 	croak join "\n", @messages;
 	}
 
