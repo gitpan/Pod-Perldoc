@@ -1,6 +1,6 @@
 --- #YAML:1.0
 name:               Pod-Perldoc
-version:            3.15_10
+version:            3.15_11
 abstract:           Look up Perl documentation in Pod format.
 author:
     - brian d foy <bdfoy@cpan.org>
@@ -15,6 +15,7 @@ requires:
     Fcntl:                0
     File::Spec::Functions:  0
     File::Temp:           0.22
+    parent:               0
     Pod::Man:             2.18
     Pod::Simple::RTF:     3.16
     Pod::Simple::XMLOutStream:  3.16
