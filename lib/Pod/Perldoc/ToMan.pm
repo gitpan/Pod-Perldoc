@@ -5,7 +5,7 @@ use warnings;
 use parent qw(Pod::Perldoc::BaseTo);
 
 use vars qw($VERSION);
-$VERSION = '3.15_11';
+$VERSION = '3.15_12';
 
 use Pod::Man 2.18;
 # This class is unlike ToText.pm et al, because we're NOT paging thru
@@ -129,7 +129,9 @@ sub _parse_with_pod_man {
 	local *STDOUT;
 	open STDOUT, '>', $self->{_text_ref};
 	my $parser = Pod::Man->new( $self->_get_podman_switches );
+	$self->debug( "Parsing $file" );
     $parser->parse_from_file( $file );
+	$self->debug( "Done parsing $file" );
     close STDOUT;
 
 	$self->die( "No output from Pod::Man!\n" )
@@ -206,6 +208,7 @@ sub _filter_through_nroff {
 
 	require Symbol;
 	require IPC::Open3;
+	require IO::Handle;
 
 	my $pid = IPC::Open3::open3(
 		my $writer,
@@ -215,14 +218,42 @@ sub _filter_through_nroff {
 		@render_switches
 		);
 
-	print { $writer } ${ $self->{_text_ref} };
+	$reader->autoflush(1);
+
+	use IO::Select;
+	my $selector = IO::Select->new( $reader );
+
+	$self->debug( "Writing to pipe to groff\n" );
+
+	my $offset = 0;
+	my $chunk_size = 4096;
+	my $length = length( ${ $self->{_text_ref} } );
+	my $chunks = $length / $chunk_size;
+	my $done;
+	my $buffer;
+	while( $offset <= $length ) {
+		$self->debug( "Writing chunk $chunks\n" ); $chunks++;
+		syswrite $writer, ${ $self->{_text_ref} }, $chunk_size, $offset;
+		$offset += $chunk_size;
+		$self->debug( "Checking read\n" );
+		READ: {
+			last READ unless $selector->can_read( 0.01 );
+			$self->debug( "Reading\n" );
+			sysread $reader, $buffer, 4096;
+			$done .= $buffer;
+			next READ;
+			}
+		}
 	close $writer;
+
+	# read any leftovers
+	$done .= do { local $/; <$reader> };
+
 	if( $? ) {
 		$self->warn( "Error from pipe to $render!\n" );
 		$self->debug( do { local $/; <$err> } );
 		}
 
-	my $done = do { local $/; <$reader> };
 
 	close $reader;
 	if( my $err = $? ) {
@@ -233,7 +264,7 @@ sub _filter_through_nroff {
 		return $self->_fallback_to_pod( @_ );
 		}
 
-	$self->debug( $done );
+	#$self->debug( $done );
 
 	${ $self->{_text_ref} } = $done;
 

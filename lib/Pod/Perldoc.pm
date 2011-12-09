@@ -12,7 +12,7 @@ use File::Spec::Functions qw(catfile catdir splitdir);
 use vars qw($VERSION @Pagers $Bindir $Pod2man
   $Temp_Files_Created $Temp_File_Lifetime
 );
-$VERSION = '3.15_11';
+$VERSION = '3.15_12';
 
 #..........................................................................
 
@@ -34,13 +34,13 @@ use Carp qw(croak carp);
 sub warn {
   my( $self, @messages ) = @_;
 
-  carp( join "\n", @messages );
+  carp( join "\n", @messages, '' );
   }
 
 sub die {
   my( $self, @messages ) = @_;
 
-  croak( join "\n", @messages );
+  croak( join "\n", @messages, '' );
   }
 
 #..........................................................................
