@@ -5,7 +5,7 @@ use warnings;
 use parent qw(Pod::Perldoc::BaseTo);
 
 use vars qw($VERSION);
-$VERSION = '3.15_12';
+$VERSION = '3.15_13';
 
 use Pod::Man 2.18;
 # This class is unlike ToText.pm et al, because we're NOT paging thru
@@ -47,9 +47,27 @@ sub new {
 sub init {
 	my( $self, @args ) = @_;
 
-	$self->__nroffer( 'nroff' ) unless $self->__nroffer;
+	$self->debug( "__nroffer is " . $self->__nroffer() . "\n" );
+	unless( $self->__nroffer ) {
+		my $roffer = $self->find_roffer( $self->roffer_candidates );
+		$self->debug( "Using $roffer\n" );
+		$self->__nroffer( $roffer );
+		}
 
 	$self->_check_nroffer;
+	}
+
+sub roffer_candidates {  ( 'groff', 'nroff' ) }
+
+sub find_roffer {
+	my( $self, @candidates ) = @_;
+
+	my @found = ();
+	foreach my $candidate ( @candidates ) {
+		push @found, $self->find_executable_in_path( $candidate );
+		}
+
+	return wantarray ? @found : $found[0];
 	}
 
 sub _check_nroffer {
@@ -72,51 +90,50 @@ use File::Spec::Functions qw(catfile);
 sub _get_stty { `stty -a` }
 
 sub _get_columns_from_stty {
-  my $output = $_[0]->_get_stty;
+	my $output = $_[0]->_get_stty;
 
-  if(    $output =~ /\bcolumns\s+(\d+)/ )    { return $1 }
-  elsif( $output =~ /;\s*(\d+)\s+columns;/ ) { return $1 }
-  else                                       { return  0 }
-  }
+	if(    $output =~ /\bcolumns\s+(\d+)/ )    { return $1 }
+	elsif( $output =~ /;\s*(\d+)\s+columns;/ ) { return $1 }
+	else                                       { return  0 }
+	}
 
 sub _get_columns_from_manwidth {
-  my( $self ) = @_;
+	my( $self ) = @_;
 
-  return 0 unless defined $ENV{MANWIDTH};
+	return 0 unless defined $ENV{MANWIDTH};
 
-  unless( $ENV{MANWIDTH} =~ m/\A\d+\z/ ) {
-    $self->warn( "Ignoring non-numeric MANWIDTH ($ENV{MANWIDTH})\n" );
-    return 0;
-    }
+	unless( $ENV{MANWIDTH} =~ m/\A\d+\z/ ) {
+		$self->warn( "Ignoring non-numeric MANWIDTH ($ENV{MANWIDTH})\n" );
+		return 0;
+		}
 
-  if( $ENV{MANWIDTH} == 0 ) {
-    $self->warn( "Ignoring MANWIDTH of 0. Really? Why even run the program? :)\n" );
-    return 0;
-    }
+	if( $ENV{MANWIDTH} == 0 ) {
+		$self->warn( "Ignoring MANWIDTH of 0. Really? Why even run the program? :)\n" );
+		return 0;
+		}
 
-  if( $ENV{MANWIDTH} =~ m/\A(\d+)\z/ ) { return $1 }
+	if( $ENV{MANWIDTH} =~ m/\A(\d+)\z/ ) { return $1 }
 
-  return 0;
-  }
+	return 0;
+	}
 
 sub _get_default_width {
-  73
-  }
+	73
+	}
 
 sub _get_columns {
-  $_[0]->_get_columns_from_manwidth ||
-  $_[0]->_get_columns_from_stty     ||
-  $_[0]->_get_default_width;
-  }
+	$_[0]->_get_columns_from_manwidth ||
+	$_[0]->_get_columns_from_stty     ||
+	$_[0]->_get_default_width;
+	}
 
 sub _get_podman_switches {
 	my( $self ) = @_;
 
 	my @switches = grep !m/^_/s, keys %$self;
 
-	$self->debug( "Pod::Man switches are [@switches]\n" );
-
 	push @switches, utf8 => 1;
+	$self->debug( "Pod::Man switches are [@switches]\n" );
 
 	return @switches;
 	}
@@ -129,23 +146,24 @@ sub _parse_with_pod_man {
 	local *STDOUT;
 	open STDOUT, '>', $self->{_text_ref};
 	my $parser = Pod::Man->new( $self->_get_podman_switches );
-	$self->debug( "Parsing $file" );
-    $parser->parse_from_file( $file );
-	$self->debug( "Done parsing $file" );
-    close STDOUT;
+	$self->debug( "Parsing $file\n" );
+	$parser->parse_from_file( $file );
+	$self->debug( "Done parsing $file\n" );
+	close STDOUT;
 
 	$self->die( "No output from Pod::Man!\n" )
 		unless length $self->{_text_ref};
 
 	$self->_save_pod_man_output if $self->debugging;
 
-    return SUCCESS;
+	return SUCCESS;
 	}
 
 sub _save_pod_man_output {
 	my( $self ) = @_;
+	next unless $self->debugging;
 	my $file = "podman.out.$$.txt";
-	$self->debug( "Writing $file with Pod::Man output" );
+	$self->debug( "Writing $file with Pod::Man output\n" );
 	open my( $fh ), '>', $file;
 	print $fh ${ $self->{_text_ref} };
 	close $fh;
@@ -154,12 +172,13 @@ sub _save_pod_man_output {
 sub _have_groff_with_utf8 {
 	my( $self ) = @_;
 
-	return 0 unless $self->__nroffer eq 'groff';
+	my $roffer = $self->__nroffer;
+	return 0 unless $roffer =~ /\bgroff\z/;
 
 	my $minimum_groff_version = '1.20.1';
 
-	my $version_string = `groff -v`;
-	my( $version ) = $version_string =~ /groff version (\d+\.\d+(?:\.\d+)?)/;
+	my $version_string = `$roffer -v`;
+	my( $version ) = $version_string =~ /\(?groff\)? version (\d+\.\d+(?:\.\d+)?)/;
 	$self->debug( "Found groff $version\n" );
 
 	# is a string comparison good enough?
@@ -199,9 +218,9 @@ sub _collect_nroff_switches {
 
 sub _filter_through_nroff {
 	my( $self ) = shift;
-	$self->debug( "Filtering through nroff\n" );
+	$self->debug( "Filtering through " . $self->__nroffer() . "\n" );
 
-	my $render = $self->{'__nroffer'} || $self->die( "no nroffer set!?" );
+	my $render = $self->__nroffer() || $self->die( "no nroffer set!?" );
 	my @render_switches = $self->_collect_nroff_switches;
 	$self->debug( "render is $render\n" );
 	$self->debug( "render options are @render_switches\n" );
@@ -233,42 +252,51 @@ sub _filter_through_nroff {
 	my $buffer;
 	while( $offset <= $length ) {
 		$self->debug( "Writing chunk $chunks\n" ); $chunks++;
-		syswrite $writer, ${ $self->{_text_ref} }, $chunk_size, $offset;
+		syswrite $writer, ${ $self->{_text_ref} }, $chunk_size, $offset
+			or $self->die( $! );
 		$offset += $chunk_size;
 		$self->debug( "Checking read\n" );
 		READ: {
 			last READ unless $selector->can_read( 0.01 );
 			$self->debug( "Reading\n" );
-			sysread $reader, $buffer, 4096;
+			my $bytes = sysread $reader, $buffer, 4096;
+			$self->debug( "Read $bytes bytes\n" );
 			$done .= $buffer;
+			$self->debug( sprintf "Output is %d bytes\n",
+				length $done
+				);
 			next READ;
 			}
 		}
 	close $writer;
+	$self->debug( "Done writing\n" );
 
 	# read any leftovers
 	$done .= do { local $/; <$reader> };
+	$self->debug( sprintf "Done reading. Output is %d bytes\n",
+		length $done
+		);
 
 	if( $? ) {
 		$self->warn( "Error from pipe to $render!\n" );
-		$self->debug( do { local $/; <$err> } );
+		$self->debug( 'Error: ' . do { local $/; <$err> } );
 		}
 
 
 	close $reader;
 	if( my $err = $? ) {
 		$self->debug(
-			"Nonzero exit ($?) while running `$render @render_switches`.\n",
+			"Nonzero exit ($?) while running `$render @render_switches`.\n" .
 			"Falling back to Pod::Perldoc::ToPod\n"
 			);
 		return $self->_fallback_to_pod( @_ );
 		}
 
-	#$self->debug( $done );
+	$self->debug( "Output:\n----\n$done\n----\n" );
 
 	${ $self->{_text_ref} } = $done;
 
-	return SUCCESS
+	return length ${ $self->{_text_ref} } ? SUCCESS : FAILED;
 	}
 
 sub parse_from_file {
@@ -294,8 +322,8 @@ sub parse_from_file {
 sub _fallback_to_pod {
 	my( $self, @args ) = @_;
 	$self->warn( "Falling back to Pod because there was a problem!\n" );
-    require Pod::Perldoc::ToPod;
-    return  Pod::Perldoc::ToPod->new->parse_from_file(@_);
+	require Pod::Perldoc::ToPod;
+	return  Pod::Perldoc::ToPod->new->parse_from_file(@_);
 	}
 
 # maybe there's a user setting we should check?
