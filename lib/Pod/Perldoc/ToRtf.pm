@@ -2,12 +2,10 @@ require 5;
 package Pod::Perldoc::ToRtf;
 use strict;
 use warnings;
-use vars qw($VERSION);
-
-use base qw( Pod::Simple::RTF );
+use parent qw( Pod::Simple::RTF );
 
 use vars qw($VERSION);
-$VERSION = '3.15_13';
+$VERSION = '3.15_14';
 
 sub is_pageable        { 0 }
 sub write_with_binmode { 0 }

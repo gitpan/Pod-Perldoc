@@ -1,6 +1,6 @@
 --- #YAML:1.0
 name:               Pod-Perldoc
-version:            3.15_13
+version:            3.15_14
 abstract:           Look up Perl documentation in Pod format.
 author:
     - brian d foy <bdfoy@cpan.org>
@@ -12,9 +12,11 @@ build_requires:
     ExtUtils::MakeMaker:  0
 requires:
     Config:               0
+    Encode:               0
     Fcntl:                0
     File::Spec::Functions:  0
     File::Temp:           0.22
+    IO::Select:           0
     parent:               0
     Pod::Man:             2.18
     Pod::Simple::RTF:     3.16

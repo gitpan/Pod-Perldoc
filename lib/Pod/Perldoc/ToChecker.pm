@@ -1,11 +1,10 @@
-require 5;
 package Pod::Perldoc::ToChecker;
 use strict;
 use warnings;
 use vars qw(@ISA);
 
 use vars qw($VERSION);
-$VERSION = '3.15_13';
+$VERSION = '3.15_14';
 
 # Pick our superclass...
 #

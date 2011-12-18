@@ -5,8 +5,9 @@ use warnings;
 use parent qw(Pod::Perldoc::BaseTo);
 
 use vars qw($VERSION);
-$VERSION = '3.15_13';
+$VERSION = '3.15_14';
 
+use File::Spec::Functions qw(catfile);
 use Pod::Man 2.18;
 # This class is unlike ToText.pm et al, because we're NOT paging thru
 # the output in our particular format -- we make the output and
@@ -47,24 +48,31 @@ sub new {
 sub init {
 	my( $self, @args ) = @_;
 
-	$self->debug( "__nroffer is " . $self->__nroffer() . "\n" );
 	unless( $self->__nroffer ) {
-		my $roffer = $self->find_roffer( $self->roffer_candidates );
+		my $roffer = $self->_find_roffer( $self->_roffer_candidates );
 		$self->debug( "Using $roffer\n" );
 		$self->__nroffer( $roffer );
 		}
+    else {
+	    $self->debug( "__nroffer is " . $self->__nroffer() . "\n" );
+        }
 
 	$self->_check_nroffer;
 	}
 
-sub roffer_candidates {  ( 'groff', 'nroff' ) }
+sub _roffer_candidates {
+	my( $self ) = @_;
 
-sub find_roffer {
+	if( $self->is_openbsd ) { qw( mandoc groff nroff ) }
+	else                    { qw( groff nroff mandoc ) }
+	}
+
+sub _find_roffer {
 	my( $self, @candidates ) = @_;
 
 	my @found = ();
 	foreach my $candidate ( @candidates ) {
-		push @found, $self->find_executable_in_path( $candidate );
+		push @found, $self->_find_executable_in_path( $candidate );
 		}
 
 	return wantarray ? @found : $found[0];
@@ -84,8 +92,6 @@ sub _check_nroffer {
 
 	# is it good enough for us?
 	}
-
-use File::Spec::Functions qw(catfile);
 
 sub _get_stty { `stty -a` }
 
@@ -132,7 +138,7 @@ sub _get_podman_switches {
 
 	my @switches = grep !m/^_/s, keys %$self;
 
-	push @switches, utf8 => 1;
+	push @switches, 'utf8' => 1;
 	$self->debug( "Pod::Man switches are [@switches]\n" );
 
 	return @switches;
@@ -160,20 +166,23 @@ sub _parse_with_pod_man {
 	}
 
 sub _save_pod_man_output {
-	my( $self ) = @_;
-	next unless $self->debugging;
-	my $file = "podman.out.$$.txt";
-	$self->debug( "Writing $file with Pod::Man output\n" );
-	open my( $fh ), '>', $file;
-	print $fh ${ $self->{_text_ref} };
-	close $fh;
+	my( $self, $fh ) = @_;
+
+	$fh = do {
+		my $file = "podman.out.$$.txt";
+		$self->debug( "Writing $file with Pod::Man output\n" );
+		open my $fh2, '>', $file;
+		$fh2;
+		} unless $fh;
+
+	print { $fh } ${ $self->{_text_ref} };
 	}
 
 sub _have_groff_with_utf8 {
 	my( $self ) = @_;
 
+	return 0 unless $self->_is_groff;
 	my $roffer = $self->__nroffer;
-	return 0 unless $roffer =~ /\bgroff\z/;
 
 	my $minimum_groff_version = '1.20.1';
 
@@ -185,23 +194,48 @@ sub _have_groff_with_utf8 {
 	if( $version lt $minimum_groff_version ) {
 		$self->warn(
 			"You have an old groff." .
-			" Update to version $minimum_groff_version to good Unicode support.\n" .
-			"If you don't upgrade, wide characters may come out oddly.\n",
+			" Update to version $minimum_groff_version for good Unicode support.\n" .
+			"If you don't upgrade, wide characters may come out oddly.\n"
 			 );
 		}
 
 	$version gt $minimum_groff_version;
 	}
 
+sub _have_mandoc_with_utf8 {
+	my( $self ) = @_;
+
+	return 0 unless $self->_is_mandoc;
+	my $roffer = $self->__nroffer;
+
+	my $minimum_mandoc_version = '1.11';
+
+	my $version_string = `$roffer -V`;
+	my( $version ) = $version_string =~ /mandoc ((\d+)\.(\d+))/;
+	$self->debug( "Found mandoc $version\n" );
+
+	# is a string comparison good enough?
+	if( $version lt $minimum_mandoc_version ) {
+		$self->warn(
+			"You have an older mandoc." .
+			" Update to version $minimum_mandoc_version for better Unicode support.\n" .
+			"If you don't upgrade, wide characters may come out oddly.\n" .
+			"Your results still might be odd. If you have groff, that's even better.\n"
+			 );
+		}
+
+	$version gt $minimum_mandoc_version;
+	}
+
 sub _collect_nroff_switches {
 	my( $self ) = shift;
 
-	my @render_switches = qw(-man);
+	my @render_switches = $self->_is_mandoc ? qw(-mandoc) : qw(-man);
 
-	push @render_switches, qw(-Kutf8 -Tutf8) if $self->_have_groff_with_utf8;
+	push @render_switches, $self->_get_device_switches;
 
 	# Thanks to Brendan O'Dea for contributing the following block
-	if( $self->is_linux and -t STDOUT and my ($cols) = $self->_get_columns ) {
+	if( $self->_is_roff and $self->is_linux and -t STDOUT and my ($cols) = $self->_get_columns ) {
 		my $c = $cols * 39 / 40;
 		$cols = $c > $cols - 2 ? $c : $cols -2;
 		push @render_switches, '-rLL=' . (int $c) . 'n' if $cols > 80;
@@ -211,11 +245,52 @@ sub _collect_nroff_switches {
 	# solves many people's problems.  But I also hear that some mans
 	# don't have a -c switch, so that unconditionally adding it here
 	# would presumably be a Bad Thing   -- sburke@cpan.org
-    push @render_switches, '-c' if $self->is_cygwin;
+    push @render_switches, '-c' if( $self->_is_roff and $self->is_cygwin );
 
 	return @render_switches;
 	}
 
+sub _get_device_switches {
+	my( $self ) = @_;
+
+	   if( $self->_is_nroff  )             { qw()              }
+	elsif( $self->_have_groff_with_utf8 )  { qw(-Kutf8 -Tutf8) }
+	elsif( $self->_is_ebcdic )             { qw(-Tcp1047)      }
+	elsif( $self->_have_mandoc_with_utf8 ) { qw(-Tutf8)        }
+	elsif( $self->_is_mandoc )             { qw()              }
+	else                                   { qw(-Tlatin1)      }
+	}
+
+sub _is_roff {
+	my( $self ) = @_;
+
+	$self->_is_nroff or $self->_is_groff;
+	}
+
+sub _is_nroff {
+	my( $self ) = @_;
+
+	$self->__nroffer =~ /\bnroff\z/;
+	}
+
+sub _is_groff {
+	my( $self ) = @_;
+
+	$self->__nroffer =~ /\bgroff\z/;
+	}
+
+sub _is_mandoc {
+	my ( $self ) = @_;
+
+	$self->__nroffer =~ /\bmandoc\z/;
+	}
+
+sub _is_ebcdic {
+	my( $self ) = @_;
+
+	return 0;
+	}
+	
 sub _filter_through_nroff {
 	my( $self ) = shift;
 	$self->debug( "Filtering through " . $self->__nroffer() . "\n" );
@@ -242,7 +317,7 @@ sub _filter_through_nroff {
 	use IO::Select;
 	my $selector = IO::Select->new( $reader );
 
-	$self->debug( "Writing to pipe to groff\n" );
+	$self->debug( "Writing to pipe to $render\n" );
 
 	my $offset = 0;
 	my $chunk_size = 4096;
@@ -376,7 +451,7 @@ sub _remove_nroff_header {
 # newlines in the Pod::Man output
 sub _remove_nroff_footer {
 	my( $self ) = @_;
-	$self->warn( "_remove_nroff_footer is still a stub!\n" );
+	$self->debug( "_remove_nroff_footer is still a stub!\n" );
 	return 1;
 	${ $self->{_text_ref} } =~ s/\n\n+.*\w.*\Z//m;
 
@@ -385,17 +460,25 @@ sub _remove_nroff_footer {
         # 28/Jan/99 perl 5.005, patch 53 1
 	}
 
+sub _unicode_already_handled {
+	my( $self ) = @_;
+
+	$self->_have_groff_with_utf8 ||
+	1  # so, we don't have a case that needs _handle_unicode
+	;
+	}
+
 sub _handle_unicode {
 # this is the job of preconv
 # we don't need this with groff 1.20 and later.
 	my( $self ) = @_;
-	#$self->warn( "_handle_unicode doesn't work yet\n" );
-	return 1;
 
-	use Encode qw( decode );
+	return 1 if $self->_unicode_already_handled;
+
+	require Encode;
 
 	# it's UTF-8 here, but we need character data
-	my $text = decode( 'UTF-8', ${ $self->{_text_ref} } ) ;
+	my $text = Encode::decode( 'UTF-8', ${ $self->{_text_ref} } ) ;
 
 # http://www.mail-archive.com/groff@gnu.org/msg01378.html
 # http://linux.die.net/man/7/groff_char
@@ -407,6 +490,7 @@ sub _handle_unicode {
 		sprintf '\\[u%04X]', ord $1
 	     /eg;
 
+	# should we encode?
 	${ $self->{_text_ref} } = $text;
 	}
 

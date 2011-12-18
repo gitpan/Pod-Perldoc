@@ -16,9 +16,11 @@ WriteMakefile(
     'PREREQ_PM' => {
             # Are there any hard dependencies not covered here?
             'Config'                    => '0',
+            'Encode'                    => '0',
             'Fcntl'                     => '0',
             'File::Spec::Functions'     => '0',
             'File::Temp'                => '0.22',
+            'IO::Select'                => '0',
             'parent'                    => '0',
             'Pod::Man'                  => '2.18',
             'Pod::Simple::RTF'          => '3.16',
@@ -38,6 +40,8 @@ WriteMakefile(
     ( $EUMM_VERSION > 6.31 ? (
         'LICENSE' => 'perl',
     ) : () ),
+
+	test => {TESTS => 't/*.t t/*/*.t'}
 );
 
 package MY;

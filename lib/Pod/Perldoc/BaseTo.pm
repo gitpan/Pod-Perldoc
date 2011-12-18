@@ -1,11 +1,9 @@
-
-require 5;
 package Pod::Perldoc::BaseTo;
 use strict;
 use warnings;
 
 use vars qw($VERSION);
-$VERSION = '3.15_13';
+$VERSION = '3.15_14';
 
 use Carp                  qw(croak carp);
 use Config                qw(%Config);
@@ -27,13 +25,14 @@ sub TRUE  () {1}
 sub FALSE () {return}
 
 BEGIN {
- *is_vms     = $^O eq 'VMS'     ? \&TRUE : \&FALSE unless defined &is_vms;
- *is_mswin32 = $^O eq 'MSWin32' ? \&TRUE : \&FALSE unless defined &is_mswin32;
- *is_dos     = $^O eq 'dos'     ? \&TRUE : \&FALSE unless defined &is_dos;
- *is_os2     = $^O eq 'os2'     ? \&TRUE : \&FALSE unless defined &is_os2;
- *is_cygwin  = $^O eq 'cygwin'  ? \&TRUE : \&FALSE unless defined &is_cygwin;
- *is_linux   = $^O eq 'linux'   ? \&TRUE : \&FALSE unless defined &is_linux;
- *is_hpux    = $^O =~ m/hpux/   ? \&TRUE : \&FALSE unless defined &is_hpux;
+ *is_vms     = $^O eq 'VMS'      ? \&TRUE : \&FALSE unless defined &is_vms;
+ *is_mswin32 = $^O eq 'MSWin32'  ? \&TRUE : \&FALSE unless defined &is_mswin32;
+ *is_dos     = $^O eq 'dos'      ? \&TRUE : \&FALSE unless defined &is_dos;
+ *is_os2     = $^O eq 'os2'      ? \&TRUE : \&FALSE unless defined &is_os2;
+ *is_cygwin  = $^O eq 'cygwin'   ? \&TRUE : \&FALSE unless defined &is_cygwin;
+ *is_linux   = $^O eq 'linux'    ? \&TRUE : \&FALSE unless defined &is_linux;
+ *is_hpux    = $^O =~ m/hpux/    ? \&TRUE : \&FALSE unless defined &is_hpux;
+ *is_openbsd = $^O =~ m/openbsd/ ? \&TRUE : \&FALSE unless defined &is_openbsd;
 }
 
 sub _perldoc_elem {
@@ -46,7 +45,9 @@ sub _perldoc_elem {
 }
 
 sub debugging {
-    defined(&Pod::Perldoc::DEBUG) and &Pod::Perldoc::DEBUG()
+	my( $self, @messages ) = @_;
+
+    ( defined(&Pod::Perldoc::DEBUG) and &Pod::Perldoc::DEBUG() )
 	}
 
 sub debug {
@@ -65,7 +66,7 @@ sub die {
 	croak join "\n", @messages, '';
 	}
 
-sub get_path_components {
+sub _get_path_components {
 	my( $self ) = @_;
 
 	my @paths = split /\Q$Config{path_sep}/, $ENV{PATH};
@@ -73,11 +74,11 @@ sub get_path_components {
 	return @paths;
 	}
 
-sub find_executable_in_path {
+sub _find_executable_in_path {
 	my( $self, $program ) = @_;
 
 	my @found = ();
-	foreach my $dir ( $self->get_path_components ) {
+	foreach my $dir ( $self->_get_path_components ) {
 		my $binary = catfile( $dir, $program );
 		$self->debug( "Looking for $binary\n" );
 		next unless -e $binary;

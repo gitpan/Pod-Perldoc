@@ -12,7 +12,7 @@ use File::Spec::Functions qw(catfile catdir splitdir);
 use vars qw($VERSION @Pagers $Bindir $Pod2man
   $Temp_Files_Created $Temp_File_Lifetime
 );
-$VERSION = '3.15_13';
+$VERSION = '3.15_14';
 
 #..........................................................................
 
@@ -183,8 +183,8 @@ sub opt_o_with { # "o" for output format
       "\L$rest", "\L\u$rest", "\U$rest" # And then try variations
 
     ) {
+      $self->aside("Considering $prefix$stem\n");
       push @classes, $prefix . $stem;
-      #print "Considering $prefix$stem\n";
     }
 
     # Tidier, but misses too much:
