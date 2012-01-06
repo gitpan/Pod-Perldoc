@@ -12,7 +12,7 @@ use File::Spec::Functions qw(catfile catdir splitdir);
 use vars qw($VERSION @Pagers $Bindir $Pod2man
   $Temp_Files_Created $Temp_File_Lifetime
 );
-$VERSION = '3.15_14';
+$VERSION = '3.15_15';
 
 #..........................................................................
 
@@ -317,6 +317,7 @@ sub program_name {
 
   my $basename = basename( $0 );
 
+  $self->debug( "\$0 is [$0]\nbasename is [$basename]\n" );
   # possible name forms
   #   perldoc
   #   perldoc-v5.14
@@ -343,7 +344,8 @@ sub program_name {
 You called the perldoc command with a name that I didn't recognize.
 This might mean that someone is tricking you into running a
 program you don't intend to use, but it also might mean that you
-created your own link to perldoc.
+created your own link to perldoc. I think your program name is
+[$basename].
 
 I'll allow this if the filename looks only has [a-zA-Z0-9._-].
 HERE
@@ -1932,9 +1934,10 @@ merchantability or fitness for a particular purpose.
 
 =head1 AUTHOR
 
-Current maintainer: brian d foy C<< <bdfoy@cpan.org> >>
+Current maintainer: Mark Allen C<< <mallen@cpan.org> >>
 
 Past contributions from:
+brian d foy C<< <bdfoy@cpan.org> >>
 Adriano R. Ferreira C<< <ferreira@cpan.org> >>,
 Sean M. Burke C<< <sburke@cpan.org> >>
 

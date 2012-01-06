@@ -10,7 +10,7 @@ WriteMakefile(
     'NAME'           => 'Pod::Perldoc',
     'VERSION_FROM'   => 'lib/Pod/Perldoc.pm',
 
-    'AUTHOR'         => 'brian d foy <bdfoy@cpan.org>', # maintainer
+    'AUTHOR'         => 'Mark Allen <mallen@cpan.org>', # maintainer
     'ABSTRACT_FROM'  => 'lib/Pod/Perldoc.pm',
 
     'PREREQ_PM' => {
@@ -34,6 +34,12 @@ WriteMakefile(
            },
 
     'EXE_FILES' => [qw( perldoc )],
+
+	'META_MERGE' => {
+		no_index => {
+			directory => 'corpus',
+			},
+		},
 
     ($^V >= 5.008001 ? ( 'INSTALLDIRS'  => 'perl' ) : ()),
 
