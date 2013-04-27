@@ -15,17 +15,14 @@ lib/Pod/Perldoc/ToTerm.pm
 lib/Pod/Perldoc/ToText.pm
 lib/Pod/Perldoc/ToTk.pm
 lib/Pod/Perldoc/ToXml.pm
-Makefile.old
 Makefile.PL
 MANIFEST
 MANIFEST.SKIP
 META.yml			Module meta-data (added by MakeMaker)
-MYMETA.json
-MYMETA.yml
+META.json
 perldoc
 perldoc.pod
 README
 t/load.t
 t/man/_get_columns.t
 t/pod.t
-META.json                                Module JSON meta-data (added by MakeMaker)
