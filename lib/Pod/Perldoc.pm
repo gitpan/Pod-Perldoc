@@ -12,7 +12,7 @@ use File::Spec::Functions qw(catfile catdir splitdir);
 use vars qw($VERSION @Pagers $Bindir $Pod2man
   $Temp_Files_Created $Temp_File_Lifetime
 );
-$VERSION = '3.20';
+$VERSION = '3.21_01';
 
 #..........................................................................
 
@@ -441,6 +441,7 @@ sub init {
   $self->{'pagers' } = [@Pagers] unless exists $self->{'pagers'};
   $self->{'bindir' } = $Bindir   unless exists $self->{'bindir'};
   $self->{'pod2man'} = $Pod2man  unless exists $self->{'pod2man'};
+  $self->{'search_path'} = [ ]   unless exists $self->{'search_path'};
 
   push @{ $self->{'formatter_switches'} = [] }, (
    # Yeah, we could use a hashref, but maybe there's some class where options
@@ -529,7 +530,7 @@ sub process {
     $self->find_good_formatter_class();
     $self->formatter_sanity_check();
 
-    $self->maybe_diddle_INC();
+    $self->maybe_extend_searchpath();
       # for when we're apparently in a module or extension directory
 
     my @found = $self->grand_search_init(\@pages);
@@ -596,7 +597,7 @@ sub find_good_formatter_class {
       } else {
         $^W = 0;
         # The average user just has no reason to be seeing
-        #  $^W-suppressible warnings from the the require!
+        #  $^W-suppressible warnings from the require!
       }
 
       eval "require $c";
@@ -858,7 +859,7 @@ sub grand_search_init {
 
         # We must look both in @INC for library modules and in $bindir
         # for executables, like h2xs or perldoc itself.
-        push @searchdirs, ($self->{'bindir'}, @INC);
+        push @searchdirs, ($self->{'bindir'}, @{$self->{search_path}}, @INC);
         unless ($self->opt_m) {
             if ($self->is_vms) {
                 my($i,$trn);
@@ -1648,19 +1649,18 @@ sub containspod {
 
 #..........................................................................
 
-sub maybe_diddle_INC {
+sub maybe_extend_searchpath {
   my $self = shift;
 
   # Does this look like a module or extension directory?
 
   if (-f "Makefile.PL" || -f "Build.PL") {
 
-    # Add "." and "lib" to @INC (if they exist)
-    eval q{ use lib qw(. lib); 1; } or $self->die;
+    push @{$self->{search_path} }, '.','lib';
 
     # don't add if superuser
     if ($< && $> && -d "blib") {   # don't be looking too hard now!
-      eval q{ use blib; 1 };
+      push @{ $self->{search_path} }, 'blib';
       $self->warn( $@ ) if $@ && $self->opt_D;
     }
   }
