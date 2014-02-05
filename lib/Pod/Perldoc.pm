@@ -12,7 +12,7 @@ use File::Spec::Functions qw(catfile catdir splitdir);
 use vars qw($VERSION @Pagers $Bindir $Pod2man
   $Temp_Files_Created $Temp_File_Lifetime
 );
-$VERSION = '3.22_01';
+$VERSION = '3.22_02';
 
 #..........................................................................
 
@@ -506,8 +506,8 @@ sub process {
     #  such as perlfaq".
 
     return $self->usage_brief  unless  @{ $self->{'args'} };
-    $self->pagers_guessing;
     $self->options_reading;
+    $self->pagers_guessing;
     $self->aside(sprintf "$0 => %s v%s\n", ref($self), $self->VERSION);
     $self->drop_privs_maybe unless $self->opt_U;
     $self->options_processing;
@@ -1646,7 +1646,14 @@ sub pagers_guessing {
        }
     }
 
-    unshift @pagers, "$ENV{PERLDOC_PAGER} <" if $ENV{PERLDOC_PAGER};
+    if ( $self->opt_m ) {
+        unshift @pagers, "$ENV{PERLDOC_SRC_PAGER}" if $ENV{PERLDOC_SRC_PAGER}
+    }
+    else {
+        unshift @pagers, "$ENV{PERLDOC_PAGER} <" if $ENV{PERLDOC_PAGER};
+    }
+
+    $self->aside("Pagers: ", @pagers);
 
     return;
 }

@@ -37,4 +37,4 @@ requires:
   warnings: 0
 resources:
   repository: https://github.com/mrallen1/Pod-Perldoc.git
-version: 3.22_01
+version: 3.22_02
