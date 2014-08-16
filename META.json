@@ -4,7 +4,7 @@
       "Mark Allen <mallen@cpan.org>"
    ],
    "dynamic_config" : 1,
-   "generated_by" : "ExtUtils::MakeMaker version 6.66, CPAN::Meta::Converter version 2.132661",
+   "generated_by" : "ExtUtils::MakeMaker version 6.98, CPAN::Meta::Converter version 2.142060",
    "license" : [
       "perl_5"
    ],
@@ -52,11 +52,11 @@
          }
       }
    },
-   "release_status" : "stable",
+   "release_status" : "testing",
    "resources" : {
       "repository" : {
          "url" : "https://github.com/mrallen1/Pod-Perldoc.git"
       }
    },
-   "version" : "3.23"
+   "version" : "3.23_01"
 }
