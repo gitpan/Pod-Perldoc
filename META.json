@@ -52,11 +52,11 @@
          }
       }
    },
-   "release_status" : "testing",
+   "release_status" : "stable",
    "resources" : {
       "repository" : {
          "url" : "https://github.com/mrallen1/Pod-Perldoc.git"
       }
    },
-   "version" : "3.23_01"
+   "version" : "3.24"
 }
